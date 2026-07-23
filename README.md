@@ -66,10 +66,6 @@ Open:
 http://127.0.0.1:8000
 ```
 
-## Live Demo
-
-**Live Application:** https://real-time-ai-trading-system.onrender.com
-
 ## GitHub Repository
 
 **Repository:** https://github.com/shreeharsha0125-dotcom/real-time-ai-trading-system
