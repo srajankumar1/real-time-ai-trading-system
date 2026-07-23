@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Market Intelligence Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <style>
+        :root {
+            --bg-void: #060810;
+            --bg-panel: #0a0d16;
+            --bg-card: #0e1220;
+            --bg-hover: #141828;
+            --border-dim: rgba(255,255,255,0.05);
+            --border-mid: rgba(255,255,255,0.1);
+            --border-accent: rgba(212,180,96,0.35);
+            --gold: #d4b460;
+            --gold-bright: #f0cf7a;
+            --gold-dim: rgba(212,180,96,0.15);
+            --teal: #3ecfb2;
+            --teal-dim: rgba(62,207,178,0.12);
+            --red: #f05656;
+            --red-dim: rgba(240,86,86,0.12);
+            --muted: #4a5068;
+            --sub: #6b7494;
+            --text: #c8d0e8;
+            --bright: #eef0f8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-void);
+            color: var(--text);
+            font-family: 'IBM Plex Mono', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.03) 2px,
+                rgba(0,0,0,0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        header {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-accent);
+            padding: 0 28px;
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-mark {
+            width: 28px;
+            height: 28px;
+            border: 1.5px solid var(--gold);
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .brand-mark::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: var(--gold);
+        }
+
+        .brand-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 15px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--bright);
+        }
+
+        .brand-sub {
+            font-size: 9px;
+            letter-spacing: 0.25em;
+            color: var(--gold);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 14px;
+            border: 1px solid var(--border-mid);
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--sub);
+            transition: all 0.4s;
+        }
+
+        .status-pill.live {
+            border-color: var(--border-accent);
+            color: var(--gold);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--muted);
+            flex-shrink: 0;
+        }
+
+        .status-pill.live .status-dot {
+            background: var(--gold);
+            box-shadow: 0 0 6px var(--gold);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 0;
+            height: calc(100vh - 58px);
+        }
+
+        .panel-left {
+            border-right: 1px solid var(--border-dim);
+            overflow-y: auto;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .panel-left::-webkit-scrollbar { width: 2px; }
+        .panel-left::-webkit-scrollbar-thumb { background: var(--border-accent); }
+
+        .panel-label {
+            font-size: 9px;
+            letter-spacing: 0.3em;
+            color: var(--muted);
+            text-transform: uppercase;
+            padding: 0 4px;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-label span { color: var(--gold); }
+
+        .asset-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            padding: 0;
+            cursor: pointer;
+            transition: border-color 0.25s, background 0.25s;
+            position: relative;
+            overflow: hidden;
+            animation: card-in 0.35s ease forwards;
+        }
+
+        .asset-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--muted);
+            transition: background 0.3s;
+        }
+
+        .asset-card.buy::before { background: var(--teal); }
+        .asset-card.sell::before { background: var(--red); }
+        .asset-card.hold::before { background: var(--gold); }
+
+        .asset-card:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-mid);
+        }
+
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .asset-name {
+            font-family: 'Syne', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--bright);
+            letter-spacing: 0.04em;
+        }
+
+        .asset-ticker {
+            font-size: 9px;
+            color: var(--muted);
+            letter-spacing: 0.15em;
+            margin-top: 2px;
+        }
+
+        .signal-badge {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            padding: 4px 10px;
+            border: 1px solid;
+        }
+
+        .signal-badge.BUY {
+            color: var(--teal);
+            border-color: rgba(62,207,178,0.4);
+            background: var(--teal-dim);
+        }
+
+        .signal-badge.SELL {
+            color: var(--red);
+            border-color: rgba(240,86,86,0.4);
+            background: var(--red-dim);
+        }
+
+        .signal-badge.HOLD {
+            color: var(--gold);
+            border-color: rgba(212,180,96,0.4);
+            background: var(--gold-dim);
+        }
+
+        .card-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            padding: 12px 16px;
+            gap: 0;
+        }
+
+        .metric {
+            padding: 4px 0;
+            position: relative;
+        }
+
+        .metric + .metric::before {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: 4px;
+            bottom: 4px;
+            width: 1px;
+            background: var(--border-dim);
+        }
+
+        .metric + .metric { padding-left: 12px; }
+
+        .m-label {
+            font-size: 8px;
+            letter-spacing: 0.25em;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .m-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .m-value.price { color: var(--gold-bright); }
+        .m-value.teal  { color: var(--teal); }
+        .m-value.red   { color: var(--red); }
+        .m-value.white { color: var(--bright); }
+
+        .card-bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            padding: 10px 16px 14px;
+            border-top: 1px solid var(--border-dim);
+            gap: 0;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .panel-right {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-dim);
+            flex-shrink: 0;
+        }
+
+        .chart-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--sub);
+        }
+
+        .chart-select-wrapper {
+            position: relative;
+        }
+
+        .chart-select-wrapper::after {
+            content: '▾';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gold);
+            font-size: 11px;
+            pointer-events: none;
+        }
+
+        select#chart-select {
+            appearance: none;
+            background: transparent;
+            border: 1px solid var(--border-accent);
+            color: var(--gold);
+            padding: 7px 32px 7px 12px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            outline: none;
+            transition: background 0.2s;
+        }
+
+        select#chart-select:hover { background: var(--gold-dim); }
+
+        select#chart-select option {
+            background: #0e1220;
+            color: var(--text);
+        }
+
+        .chart-body {
+            flex: 1;
+            position: relative;
+        }
+
+        #tv-canvas {
+            position: absolute;
+            inset: 0;
+        }
+
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: 0.1em;
+        }
+
+        .empty-state .icon {
+            font-size: 28px;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        @keyframes card-in {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        ::-webkit-scrollbar { width: 3px; height: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-mid); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-brand">
+        <div class="brand-mark"></div>
+        <div>
+            <div class="brand-title">Market Intelligence</div>
+            <div class="brand-sub">Multi-Asset Stream Terminal</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="status-pill" id="socket-badge">
+            <div class="status-dot"></div>
+            <span id="badge-text">Awaiting Connection</span>
+        </div>
+    </div>
+</header>
+
+<div class="workspace">
+
+    <div class="panel-left">
+        <div class="panel-label">
+            Signal Feed
+            <span id="asset-count">0 ASSETS</span>
+        </div>
+        <div id="telemetry-deck"></div>
+        <div class="empty-state" id="empty-state">
+            <div class="icon">◈</div>
+            <div>Waiting for stream data</div>
+        </div>
+    </div>
+
+    <div class="panel-right">
+        <div class="chart-header">
+            <div class="chart-title">Live Context Stream</div>
+            <div class="chart-select-wrapper">
+                <select id="chart-select" onchange="renderChart(this.value)">
+                    <option value="SPY">S&P 500 — SPY</option>
+                    <option value="FX_IDC:USDINR">USD / INR</option>
+                    <option value="FX:EURUSD">EUR / USD</option>
+                    <option value="BINANCE:BTCUSDT">Bitcoin — BTC</option>
+                    <option value="COMEX:GC1!">Gold — COMEX</option>
+                    <option value="NYMEX:CL1!">Crude Oil — WTI</option>
+                </select>
+            </div>
+        </div>
+        <div class="chart-body">
+            <div id="tv-canvas"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const nameRegistry = {
+        "^GSPC":    { name: "S&P 500 Index",  ticker: "^GSPC"  },
+        "INRUSD=X": { name: "USD / INR",       ticker: "FOREX"  },
+        "USDEUR=X": { name: "EUR / USD",       ticker: "FOREX"  },
+        "BTC-USD":  { name: "Bitcoin",          ticker: "BTC-USD"},
+        "GC=F":     { name: "Gold",             ticker: "COMEX"  },
+        "SI=F":     { name: "Silver",           ticker: "COMEX"  },
+        "CL=F":     { name: "Crude Oil WTI",   ticker: "NYMEX"  }
+    };
+
+    let assetCount = 0;
+    const deck       = document.getElementById('telemetry-deck');
+    const emptyState = document.getElementById('empty-state');
+    const countEl    = document.getElementById('asset-count');
+    const badge      = document.getElementById('socket-badge');
+    const badgeText  = document.getElementById('badge-text');
+
+    const ws = new WebSocket('ws://127.0.0.1:8000/ws/signals');
+
+    ws.onopen = () => {
+        badge.classList.add('live');
+        badgeText.textContent = 'Stream Active';
+    };
+
+    ws.onmessage = (msg) => {
+        const p = JSON.parse(msg.data);
+        let card = document.getElementById(`asset-${p.ticker}`);
+        const isNew = !card;
+
+        if (isNew) {
+            card = document.createElement('div');
+            card.id = `asset-${p.ticker}`;
+            card.className = 'asset-card';
+            deck.appendChild(card);
+            emptyState.style.display = 'none';
+            assetCount++;
+            countEl.textContent = `${assetCount} ASSET${assetCount !== 1 ? 'S' : ''}`;
+        }
+
+        const info = nameRegistry[p.ticker] || { name: p.ticker, ticker: p.ticker };
+        const sig  = p.signal.split('/')[0];
+        const dp   = p.ticker.includes("=X") ? (p.ticker.startsWith("INR") ? 2 : 4) : 2;
+
+        card.className = `asset-card ${sig.toLowerCase()}`;
+        card.innerHTML = `
+            <div class="card-head">
+                <div>
+                    <div class="asset-name">${info.name}</div>
+                    <div class="asset-ticker">${info.ticker}</div>
+                </div>
+                <div class="signal-badge ${sig}">${p.signal}</div>
+            </div>
+            <div class="card-metrics">
+                <div class="metric">
+                    <div class="m-label">Price</div>
+                    <div class="m-value price">${Number(p.close).toFixed(dp)}</div>
+                </div>
+                <div class="metric">
+                    <div class="m-label">Confidence</div>
+                    <div class="m-value white">${p.confidence}</div>
+                </div>
+                <div class="metric">
+                    <div class="m-label">RSI 14</div>
+                    <div class="m-value ${Number(p.rsi) > 70 ? 'red' : Number(p.rsi) < 30 ? 'teal' : 'white'}">${Number(p.rsi).toFixed(2)}</div>
+                </div>
+            </div>
+            <div class="card-bottom">
+                <div class="metric">
+                    <div class="m-label">Sharpe</div>
+                    <div class="m-value white">${p.sharpe}</div>
+                </div>
+                <div class="metric">
+                    <div class="m-label">CAGR</div>
+                    <div class="m-value teal">${p.cagr}</div>
+                </div>
+                <div class="metric">
+                    <div class="m-label">Max DD</div>
+                    <div class="m-value red">${p.max_dd}</div>
+                </div>
+            </div>
+        `;
+    };
+
+    ws.onclose = () => {
+        badge.classList.remove('live');
+        badgeText.textContent = 'Disconnected';
+    };
+
+    function renderChart(symbol) {
+        document.getElementById('tv-canvas').innerHTML = '';
+        new TradingView.MediumWidget({
+            "symbols": [[symbol, symbol]],
+            "chartOnly": false,
+            "width": "100%",
+            "height": "100%",
+            "locale": "en",
+            "colorTheme": "dark",
+            "gridLineColor": "rgba(255,255,255,0.03)",
+            "trendLineColor": "#d4b460",
+            "fontColor": "#4a5068",
+            "underLineColor": "rgba(212,180,96,0.08)",
+            "underLineBottomColor": "rgba(212,180,96,0)",
+            "isTransparent": true,
+            "autosize": true,
+            "container_id": "tv-canvas"
+        });
+    }
+    renderChart('SPY');
+</script>
+</body>
+</html>
