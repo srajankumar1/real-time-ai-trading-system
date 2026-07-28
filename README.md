@@ -68,7 +68,7 @@ http://127.0.0.1:8000
 
 ## GitHub Repository
 
-**Repository:** https://github.com/shreeharsha0125-dotcom/real-time-ai-trading-system
+**Repository:** https://github.com/srajankumar1/real-time-ai-trading-system
 
 ##  Dashboard
 
